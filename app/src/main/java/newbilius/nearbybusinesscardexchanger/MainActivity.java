@@ -17,6 +17,7 @@ import com.google.android.gms.nearby.connection.AppIdentifier;
 import com.google.android.gms.nearby.connection.AppMetadata;
 import com.google.android.gms.nearby.connection.Connections;
 import newbilius.nearbybusinesscardexchanger.Utils.*;
+
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.List;
@@ -130,7 +131,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
         String serviceId = getString(R.string.service_id);
 
         // Set an appropriate timeout length in milliseconds
-        long DISCOVER_TIMEOUT = 5000L;
+        long DISCOVER_TIMEOUT = 0L;
 
         Nearby.Connections.startDiscovery(googleApiClient, serviceId, DISCOVER_TIMEOUT, this)
                 .setResultCallback(new ResultCallback<Status>() {
@@ -153,7 +154,6 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
     public void onConnectionRequest(final String remoteEndpointId, String remoteDeviceId,
                                     String remoteEndpointName, byte[] payload) {
         byte[] myPayload = null;
-        // Automatically accept all requests
         Nearby.Connections.acceptConnectionRequest(googleApiClient, remoteEndpointId,
                 myPayload, this).setResultCallback(new ResultCallback<Status>() {
             @Override
@@ -174,7 +174,6 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
         });
         //rejecting
         // Nearby.Connections.rejectConnectionRequest(mGoogleApiClient, remoteEndpointId);
-
     }
 
     private void SendText() throws UnsupportedEncodingException {
@@ -194,7 +193,15 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
     }
 
     public void OnClickButtonGet(View view) {
-        startDiscovery();
+        if (globalRemoteEndpointId == null)
+            startDiscovery();
+        else {
+            try {
+                SendText();
+            } catch (UnsupportedEncodingException e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     private void connectTo(String remoteEndpointId) {
@@ -211,6 +218,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
                         if (status.isSuccess()) {
                             // Successful connection
                             LogHelper.Info("connectTo isSuccess ");
+                            globalRemoteEndpointId = remoteEndpointId;
                         } else {
                             // Failed connection
                             LogHelper.Info("connectTo Failed ");
