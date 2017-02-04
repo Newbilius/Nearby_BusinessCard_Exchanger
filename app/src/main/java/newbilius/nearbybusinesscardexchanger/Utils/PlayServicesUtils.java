@@ -1,6 +1,7 @@
 package newbilius.nearbybusinesscardexchanger.Utils;
 
 import android.app.Activity;
+import android.content.Context;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
 
