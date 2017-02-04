@@ -1,0 +1,2 @@
+Проверять наличие Google Play Services
+	https://developers.google.com/android/guides/setup

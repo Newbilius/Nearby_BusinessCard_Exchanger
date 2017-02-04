@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">Nearby BusinessCard Exchanger</string>
+    <string name="service_id">newbilius.nearbybusinesscardexchanger</string>
+</resources>
