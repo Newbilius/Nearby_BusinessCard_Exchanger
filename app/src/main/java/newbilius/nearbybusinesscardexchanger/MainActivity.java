@@ -16,6 +16,7 @@ import com.google.android.gms.nearby.Nearby;
 import com.google.android.gms.nearby.connection.AppIdentifier;
 import com.google.android.gms.nearby.connection.AppMetadata;
 import com.google.android.gms.nearby.connection.Connections;
+import newbilius.nearbybusinesscardexchanger.Utils.*;
 import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.List;
@@ -26,6 +27,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
     private NetStatusService netStatusService;
     private EditText editText;
     private String globalRemoteEndpointId;
+    MutableListDialog<String> selectEndPointDialog;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -157,7 +159,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
             @Override
             public void onResult(Status status) {
                 try {
-                    globalRemoteEndpointId=remoteEndpointId;
+                    globalRemoteEndpointId = remoteEndpointId;
                     SendText();
                 } catch (UnsupportedEncodingException e) {
                     e.printStackTrace();
@@ -184,9 +186,9 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
     }
 
     public void OnClickButtonSend(View view) throws UnsupportedEncodingException {
-        if (globalRemoteEndpointId==null)
+        if (globalRemoteEndpointId == null)
             startAdvertising();
-        else{
+        else {
             SendText();
         }
     }
@@ -195,7 +197,7 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
         startDiscovery();
     }
 
-    private void connectTo(String remoteEndpointId, final String endpointName) {
+    private void connectTo(String remoteEndpointId) {
         // Send a connection request to a remote endpoint. By passing 'null' for
         // the name, the Nearby Connections API will construct a default name
         // based on device model such as 'LGE Nexus 5'.
@@ -208,10 +210,10 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
                                                      byte[] bytes) {
                         if (status.isSuccess()) {
                             // Successful connection
-                            LogHelper.Info("connectTo isSuccess " + endpointName);
+                            LogHelper.Info("connectTo isSuccess ");
                         } else {
                             // Failed connection
-                            LogHelper.Info("connectTo Failed " + endpointName);
+                            LogHelper.Info("connectTo Failed ");
                         }
                     }
                 }, this);
@@ -221,16 +223,24 @@ public class MainActivity extends AppCompatActivity implements GoogleApiClient.C
     @Override
     public void onEndpointFound(final String endpointId, String deviceId,
                                 String serviceId, final String endpointName) {
-        //todo селектор вариантов
-        //LogHelper.Info(endpointName);
-        connectTo(endpointId, endpointName);
+        if (selectEndPointDialog == null) {
+            selectEndPointDialog = new MutableListDialog<>(this,
+                    "Найденные клиенты",
+                    new IClick<String>() {
+                        @Override
+                        public void OnItemSelect(String value) {
+                            connectTo(value);
+                        }
+                    });
+        }
+        selectEndPointDialog.addItem(endpointName, endpointId);
+        selectEndPointDialog.show();
     }
 
     @Override
     public void onEndpointLost(String s) {
 
     }
-
 
     @Override
     public void onMessageReceived(String endpointId, byte[] payload, boolean isReliable) {

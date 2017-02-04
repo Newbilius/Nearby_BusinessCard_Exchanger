@@ -1,4 +1,4 @@
-package newbilius.nearbybusinesscardexchanger;
+package newbilius.nearbybusinesscardexchanger.Utils;
 
 import android.app.Activity;
 import com.google.android.gms.common.ConnectionResult;
@@ -11,15 +11,13 @@ public class PlayServicesUtils {
     public static boolean checkPlayServices(Activity activity) {
         GoogleApiAvailability googleAPI = GoogleApiAvailability.getInstance();
         int result = googleAPI.isGooglePlayServicesAvailable(activity);
-        if(result != ConnectionResult.SUCCESS) {
-            if(googleAPI.isUserResolvableError(result)) {
+        if (result != ConnectionResult.SUCCESS) {
+            if (googleAPI.isUserResolvableError(result)) {
                 googleAPI.getErrorDialog(activity, result,
                         PLAY_SERVICES_RESOLUTION_REQUEST).show();
             }
-
             return false;
         }
-
         return true;
     }
 }

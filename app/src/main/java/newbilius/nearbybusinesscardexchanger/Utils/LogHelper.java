@@ -1,4 +1,4 @@
-package newbilius.nearbybusinesscardexchanger;
+package newbilius.nearbybusinesscardexchanger.Utils;
 
 import android.util.Log;
 
