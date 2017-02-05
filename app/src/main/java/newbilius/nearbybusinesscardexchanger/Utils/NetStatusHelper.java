@@ -4,11 +4,11 @@ import android.content.Context;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 
-public class NetStatusService {
+public class NetStatusHelper {
 
     private final ConnectivityManager connectivityManager;
 
-    public NetStatusService(Context context) {
+    public NetStatusHelper(Context context) {
         connectivityManager =
                 (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
     }

@@ -1,5 +1,5 @@
 package newbilius.nearbybusinesscardexchanger.Nearby;
 
 public interface IOnMessage {
-    void GetMessage(String message);
+    void getMessage(String message);
 }

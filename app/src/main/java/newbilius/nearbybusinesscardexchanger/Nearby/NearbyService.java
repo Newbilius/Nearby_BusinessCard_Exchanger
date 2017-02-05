@@ -13,6 +13,7 @@ import com.google.android.gms.nearby.Nearby;
 import com.google.android.gms.nearby.connection.AppIdentifier;
 import com.google.android.gms.nearby.connection.AppMetadata;
 import com.google.android.gms.nearby.connection.Connections;
+import com.google.android.gms.nearby.connection.ConnectionsStatusCodes;
 import newbilius.nearbybusinesscardexchanger.R;
 import newbilius.nearbybusinesscardexchanger.Utils.*;
 
@@ -21,28 +22,34 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class NearbyService implements GoogleApiClient.ConnectionCallbacks, GoogleApiClient.OnConnectionFailedListener, Connections.ConnectionRequestListener, Connections.EndpointDiscoveryListener, Connections.MessageListener {
-    private final NetStatusService netStatusService;
+    private final NetStatusHelper netStatusHelper;
+    private final String serviceId;
     private GoogleApiClient googleApiClient;
     private Context context;
     private Activity activity;
     private IOnMessage onMessage;
+    private IOnConnect onConnect;
+    private IOnError onError;
     private String globalRemoteEndpointId;
     private MutableListDialog<String> selectEndPointDialog;
 
-    public NearbyService(Activity activity, IOnMessage iOnMessage) {
+    public NearbyService(Activity activity, IOnMessage iOnMessage, IOnConnect onConnect, IOnError onError) {
         this.context = activity.getBaseContext();
         this.activity = activity;
         this.onMessage = iOnMessage;
+        this.onConnect = onConnect;
+        this.onError = onError;
+        serviceId = context.getString(R.string.service_id);
         googleApiClient = new GoogleApiClient.Builder(context)
                 .addConnectionCallbacks(this)
                 .addOnConnectionFailedListener(this)
                 .addApi(Nearby.CONNECTIONS_API)
                 .build();
-        netStatusService = new NetStatusService(context);
+        netStatusHelper = new NetStatusHelper(context);
     }
 
     public void onStart() {
-        if (PlayServicesUtils.checkPlayServices(activity)) start();
+        if (PlayServicesHelper.checkPlayServices(activity)) start();
     }
 
     private void start() {
@@ -54,7 +61,7 @@ public class NearbyService implements GoogleApiClient.ConnectionCallbacks, Googl
     }
 
     public void onActivityResult(int requestCode) {
-        if (requestCode == PlayServicesUtils.PLAY_SERVICES_RESOLUTION_REQUEST) start();
+        if (requestCode == PlayServicesHelper.PLAY_SERVICES_RESOLUTION_REQUEST) start();
     }
 
     @Override
@@ -74,34 +81,38 @@ public class NearbyService implements GoogleApiClient.ConnectionCallbacks, Googl
                 + " " + connectionResult.getErrorCode());
     }
 
-    void startAdvertising() {
-        if (!netStatusService.isConnectedToNetwork()) {
-            //@todo реакция на отсутствие сети
-        }
+    @SuppressWarnings("ConstantConditions")
+    private void startAdvertising() {
+        if (!netStatusHelper.isConnectedToNetwork()) netError();
 
         List<AppIdentifier> appIdentifierList = new ArrayList<>();
         appIdentifierList.add(new AppIdentifier(activity.getPackageName()));
         AppMetadata appMetadata = new AppMetadata(appIdentifierList);
 
-        // The advertising timeout is set to run indefinitely
-        // Positive values represent timeout in milliseconds
         long NO_TIMEOUT = 0L;
 
-        String name = null;
-        Nearby.Connections.startAdvertising(googleApiClient, name, appMetadata, NO_TIMEOUT,
+        String myName = null;//показываем дефолтное имя устройства, типа "LGE Nexus 5"
+        Nearby.Connections.startAdvertising(googleApiClient, myName, appMetadata, NO_TIMEOUT,
                 this).setResultCallback(new ResultCallback<Connections.StartAdvertisingResult>() {
             @Override
-            public void onResult(Connections.StartAdvertisingResult result) {
+            public void onResult(@NonNull Connections.StartAdvertisingResult result) {
                 if (result.getStatus().isSuccess()) {
-                    //@todo информирование
                     LogHelper.Info("startAdvertising isSuccess");
                 } else {
                     int statusCode = result.getStatus().getStatusCode();
-                    ///@todo информирование
-                    LogHelper.Info("startAdvertising statusCode " + statusCode);
+                    String statusText = result.getStatus().getStatusMessage();
+                    if (statusCode == ConnectionsStatusCodes.STATUS_NETWORK_NOT_CONNECTED) {
+                        onError.OnError("Не подключен Wi-Fi");
+                        return;
+                    }
+                    onError.OnError("Произошла ошибка " + statusCode + " " + statusText);
                 }
             }
         });
+    }
+
+    private void netError() {
+        onError.OnError("Нет интернета. Проверьте соединение :-/");
     }
 
     public void sendText(String text) {
@@ -113,25 +124,20 @@ public class NearbyService implements GoogleApiClient.ConnectionCallbacks, Googl
     }
 
     public void startDiscovery() {
-        if (!netStatusService.isConnectedToNetwork()) {
-            //@todo реакция на отсутствие сети
-        }
-        String serviceId = context.getString(R.string.service_id);
+        if (!netStatusHelper.isConnectedToNetwork()) netError();
 
-        // Set an appropriate timeout length in milliseconds
-        long DISCOVER_TIMEOUT = 0L;
+        long DISCOVER_TIMEOUT = 0L; //infinity
 
         Nearby.Connections.startDiscovery(googleApiClient, serviceId, DISCOVER_TIMEOUT, this)
                 .setResultCallback(new ResultCallback<Status>() {
                     @Override
-                    public void onResult(Status status) {
+                    public void onResult(@NonNull Status status) {
                         if (status.isSuccess()) {
-                            //@todo информирование
                             LogHelper.Info("startDiscovery isSuccess");
                         } else {
-                            //@todo информирование
-                            int statusCode = status.getStatusCode();
-                            LogHelper.Info("startDiscovery statusCode " + statusCode);
+                            int statusCode = status.getStatus().getStatusCode();
+                            String statusText = status.getStatus().getStatusMessage();
+                            onError.OnError("Произошла ошибка " + statusCode + " " + statusText);
                         }
                     }
                 });
@@ -140,23 +146,18 @@ public class NearbyService implements GoogleApiClient.ConnectionCallbacks, Googl
     @Override
     public void onConnectionRequest(final String remoteEndpointId, String remoteDeviceId,
                                     String remoteEndpointName, byte[] payload) {
-        byte[] myPayload = null;
         Nearby.Connections.acceptConnectionRequest(googleApiClient, remoteEndpointId,
-                myPayload, this).setResultCallback(new ResultCallback<Status>() {
+                null, this).setResultCallback(new ResultCallback<Status>() {
             @Override
-            public void onResult(Status status) {
+            public void onResult(@NonNull Status status) {
                 if (status.isSuccess()) {
-                    ShowMessage("Connected!");
+                    LogHelper.Info("onConnectionRequest - success");
                     globalRemoteEndpointId = remoteEndpointId;
                 } else {
-                    ShowMessage("Failed to connect :( " + status.getStatusMessage());
+                    onError.OnError("Failed to connect :( " + status.getStatusMessage());
                 }
             }
         });
-    }
-
-    private void ShowMessage(String text) {
-        onMessage.GetMessage(text);
     }
 
     @Override
@@ -185,41 +186,34 @@ public class NearbyService implements GoogleApiClient.ConnectionCallbacks, Googl
     @Override
     public void onMessageReceived(String endpointId, byte[] payload, boolean isReliable) {
         try {
-            ShowMessage(new String(payload, "UTF-8"));
+            onMessage.getMessage(new String(payload, "UTF-8"));
         } catch (UnsupportedEncodingException e) {
             e.printStackTrace();
-            LogHelper.Error(e.getMessage());
+            onError.OnError(e.getMessage());
         }
     }
 
     @Override
     public void onDisconnected(String s) {
         globalRemoteEndpointId = null;
-        LogHelper.Error("onDisconnected");
+        LogHelper.Info("onDisconnected");
     }
 
-    public boolean isConnected() {
-        return globalRemoteEndpointId != null;
-    }
-
+    @SuppressWarnings("ConstantConditions")
     private void connectTo(String remoteEndpointId) {
-        // Send a connection request to a remote endpoint. By passing 'null' for
-        // the name, the Nearby Connections API will construct a default name
-        // based on device model such as 'LGE Nexus 5'.
-        String myName = null;
-        byte[] myPayload = null;
+        String myName = null;//отправляем дефолтное имя устройства, типа "LGE Nexus 5"
         Nearby.Connections.sendConnectionRequest(googleApiClient, myName,
-                remoteEndpointId, myPayload, new Connections.ConnectionResponseCallback() {
+                remoteEndpointId, null, new Connections.ConnectionResponseCallback() {
                     @Override
                     public void onConnectionResponse(String remoteEndpointId, Status status,
                                                      byte[] bytes) {
                         if (status.isSuccess()) {
-                            // Successful connection
-                            LogHelper.Info("connectTo isSuccess ");
+                            LogHelper.Info("connectTo isSuccess");
                             globalRemoteEndpointId = remoteEndpointId;
+                            Nearby.Connections.stopDiscovery(googleApiClient, serviceId);
+                            onConnect.onConnect();
                         } else {
-                            // Failed connection
-                            LogHelper.Info("connectTo Failed ");
+                            onError.OnError("connectTo failed :( " + status.getStatusCode() + " " + status.getStatus().getStatusMessage());
                         }
                     }
                 }, this);

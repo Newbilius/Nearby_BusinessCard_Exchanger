@@ -1,0 +1,3 @@
+При появлении Wi-Fi перезапускать процесс поиска [NetworkStateReceiverListener]
+Сохранять по мере ввода данные в SharedPreferences
+Натянуть android.support.design.widget.TextInputLayout

@@ -5,7 +5,7 @@ import android.content.Context;
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GoogleApiAvailability;
 
-public class PlayServicesUtils {
+public class PlayServicesHelper {
 
     public final static int PLAY_SERVICES_RESOLUTION_REQUEST = 9000;
 
